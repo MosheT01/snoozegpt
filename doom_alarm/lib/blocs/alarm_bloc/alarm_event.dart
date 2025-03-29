@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import '../../core/models/alarm_model.dart';
 
 abstract class AlarmEvent extends Equatable {
   const AlarmEvent();
@@ -7,15 +8,13 @@ abstract class AlarmEvent extends Equatable {
   List<Object> get props => [];
 }
 
-// Event: Load alarms from memory
 class LoadAlarms extends AlarmEvent {}
 
-// Event: Add a new alarm (time only for now)
 class AddAlarm extends AlarmEvent {
-  final DateTime time;
+  final AlarmModel alarm;
 
-  const AddAlarm(this.time);
+  const AddAlarm(this.alarm);
 
   @override
-  List<Object> get props => [time];
+  List<Object> get props => [alarm];
 }

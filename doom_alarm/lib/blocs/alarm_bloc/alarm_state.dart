@@ -1,11 +1,12 @@
 import 'package:equatable/equatable.dart';
+import '../../core/models/alarm_model.dart';
 
 class AlarmState extends Equatable {
-  final List<DateTime> alarms;
+  final List<AlarmModel> alarms;
 
   const AlarmState({required this.alarms});
 
-  AlarmState copyWith({List<DateTime>? alarms}) {
+  AlarmState copyWith({List<AlarmModel>? alarms}) {
     return AlarmState(alarms: alarms ?? this.alarms);
   }
 
