@@ -1,11 +1,11 @@
-// lib/core/models/alarm_model.dart
-import 'package:flutter/material.dart';
+import 'package:equatable/equatable.dart';
 import 'package:hive/hive.dart';
+import 'package:flutter/material.dart';
 
 part 'alarm_model.g.dart';
 
 @HiveType(typeId: 0)
-class AlarmModel extends HiveObject {
+class AlarmModel extends HiveObject with EquatableMixin {
   @HiveField(0)
   final int hour;
 
@@ -32,6 +32,16 @@ class AlarmModel extends HiveObject {
     required this.alarmType,
     required this.sound,
   });
+
+  @override
+  List<Object?> get props => [
+    hour,
+    minute,
+    repeatDays,
+    label,
+    alarmType,
+    sound,
+  ];
 
   TimeOfDay get time => TimeOfDay(hour: hour, minute: minute);
 }

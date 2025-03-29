@@ -18,3 +18,12 @@ class AddAlarm extends AlarmEvent {
   @override
   List<Object> get props => [alarm];
 }
+
+class DeleteAlarm extends AlarmEvent {
+  final int index;
+
+  const DeleteAlarm(this.index);
+
+  @override
+  List<Object> get props => [index];
+}

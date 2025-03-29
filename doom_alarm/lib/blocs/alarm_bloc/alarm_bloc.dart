@@ -8,6 +8,20 @@ class AlarmBloc extends Bloc<AlarmEvent, AlarmState> {
   AlarmBloc() : super(const AlarmState(alarms: [])) {
     on<LoadAlarms>(_onLoadAlarms);
     on<AddAlarm>(_onAddAlarm);
+    on<DeleteAlarm>(_onDeleteAlarm);
+  }
+
+  Future<void> _onDeleteAlarm(
+    DeleteAlarm event,
+    Emitter<AlarmState> emit,
+  ) async {
+    final box = Hive.box<AlarmModel>('alarms');
+    final alarm = box.getAt(event.index);
+    if (alarm != null) {
+      await alarm.delete(); // removes from Hive
+      final updated = box.values.toList();
+      emit(state.copyWith(alarms: updated));
+    }
   }
 
   Future<void> _onLoadAlarms(LoadAlarms event, Emitter<AlarmState> emit) async {
