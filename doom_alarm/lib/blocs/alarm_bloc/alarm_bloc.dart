@@ -3,6 +3,8 @@ import 'package:hive/hive.dart';
 import '../../core/models/alarm_model.dart';
 import 'alarm_event.dart';
 import 'alarm_state.dart';
+import 'package:android_alarm_manager_plus/android_alarm_manager_plus.dart';
+import '../../core/utils/alarm_callback.dart'; 
 
 class AlarmBloc extends Bloc<AlarmEvent, AlarmState> {
   AlarmBloc() : super(const AlarmState(alarms: [])) {
@@ -30,10 +32,34 @@ class AlarmBloc extends Bloc<AlarmEvent, AlarmState> {
     emit(state.copyWith(alarms: alarms));
   }
 
-  Future<void> _onAddAlarm(AddAlarm event, Emitter<AlarmState> emit) async {
+ Future<void> _onAddAlarm(AddAlarm event, Emitter<AlarmState> emit) async {
     final box = Hive.box<AlarmModel>('alarms');
     await box.add(event.alarm);
+
     final updated = box.values.toList();
     emit(state.copyWith(alarms: updated));
+
+    final now = DateTime.now();
+    final alarmTime = DateTime(
+      now.year,
+      now.month,
+      now.day,
+      event.alarm.hour,
+      event.alarm.minute,
+    );
+
+    if (alarmTime.isBefore(now)) {
+      // If the time is already passed today, set for tomorrow
+      alarmTime.add(const Duration(days: 1));
+    }
+
+    // Schedule the alarm
+    await AndroidAlarmManager.oneShotAt(
+      alarmTime,
+      alarmTime.hashCode, // unique ID
+      alarmCallback,
+      exact: true,
+      wakeup: true,
+    );
   }
 }

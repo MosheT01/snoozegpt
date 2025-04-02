@@ -1,0 +1,638 @@
+=== FILE: .\main.dart ===
+
+import 'package:doom_alarm/blocs/alarm_bloc/alarm_event.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'features/alarm/ui/alarm_list_screen.dart';
+import 'blocs/alarm_bloc/alarm_bloc.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'core/models/alarm_model.dart';
+import 'package:android_alarm_manager_plus/android_alarm_manager_plus.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Hive.initFlutter();
+  Hive.registerAdapter(AlarmModelAdapter());
+  final box = await Hive.openBox<AlarmModel>('alarms');
+
+  //await box.clear(); // ⚠️ Clears incompatible old data once
+  await AndroidAlarmManager.initialize();
+
+  runApp(const DoomAlarmApp());
+}
+
+class DoomAlarmApp extends StatelessWidget {
+  const DoomAlarmApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider<AlarmBloc>(create: (_) => AlarmBloc()..add(LoadAlarms())),
+      ],
+      child: MaterialApp(
+        title: 'Doom Alarm',
+        theme: ThemeData(primarySwatch: Colors.deepPurple),
+        home: const AlarmListScreen(),
+      ),
+    );
+  }
+}
+
+
+=== FILE: .\blocs\alarm_bloc\alarm_bloc.dart ===
+
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:hive/hive.dart';
+import '../../core/models/alarm_model.dart';
+import 'alarm_event.dart';
+import 'alarm_state.dart';
+
+class AlarmBloc extends Bloc<AlarmEvent, AlarmState> {
+  AlarmBloc() : super(const AlarmState(alarms: [])) {
+    on<LoadAlarms>(_onLoadAlarms);
+    on<AddAlarm>(_onAddAlarm);
+    on<DeleteAlarm>(_onDeleteAlarm);
+  }
+
+  Future<void> _onDeleteAlarm(
+    DeleteAlarm event,
+    Emitter<AlarmState> emit,
+  ) async {
+    final box = Hive.box<AlarmModel>('alarms');
+    final alarm = box.getAt(event.index);
+    if (alarm != null) {
+      await alarm.delete(); // removes from Hive
+      final updated = box.values.toList();
+      emit(state.copyWith(alarms: updated));
+    }
+  }
+
+  Future<void> _onLoadAlarms(LoadAlarms event, Emitter<AlarmState> emit) async {
+    final box = Hive.box<AlarmModel>('alarms');
+    final alarms = box.values.toList();
+    emit(state.copyWith(alarms: alarms));
+  }
+
+  Future<void> _onAddAlarm(AddAlarm event, Emitter<AlarmState> emit) async {
+    final box = Hive.box<AlarmModel>('alarms');
+    await box.add(event.alarm);
+    final updated = box.values.toList();
+    emit(state.copyWith(alarms: updated));
+  }
+}
+
+
+=== FILE: .\blocs\alarm_bloc\alarm_event.dart ===
+
+import 'package:equatable/equatable.dart';
+import '../../core/models/alarm_model.dart';
+
+abstract class AlarmEvent extends Equatable {
+  const AlarmEvent();
+
+  @override
+  List<Object> get props => [];
+}
+
+class LoadAlarms extends AlarmEvent {}
+
+class AddAlarm extends AlarmEvent {
+  final AlarmModel alarm;
+
+  const AddAlarm(this.alarm);
+
+  @override
+  List<Object> get props => [alarm];
+}
+
+class DeleteAlarm extends AlarmEvent {
+  final int index;
+
+  const DeleteAlarm(this.index);
+
+  @override
+  List<Object> get props => [index];
+}
+
+
+=== FILE: .\blocs\alarm_bloc\alarm_state.dart ===
+
+import 'package:equatable/equatable.dart';
+import '../../core/models/alarm_model.dart';
+
+class AlarmState extends Equatable {
+  final List<AlarmModel> alarms;
+
+  const AlarmState({required this.alarms});
+
+  AlarmState copyWith({List<AlarmModel>? alarms}) {
+    return AlarmState(alarms: alarms ?? this.alarms);
+  }
+
+  @override
+  List<Object> get props => [alarms];
+}
+
+
+=== FILE: .\core\models\alarm_model.dart ===
+
+import 'package:equatable/equatable.dart';
+import 'package:hive/hive.dart';
+import 'package:flutter/material.dart';
+
+part 'alarm_model.g.dart';
+
+@HiveType(typeId: 0)
+class AlarmModel extends HiveObject with EquatableMixin {
+  @HiveField(0)
+  final int hour;
+
+  @HiveField(1)
+  final int minute;
+
+  @HiveField(2)
+  final List<String> repeatDays;
+
+  @HiveField(3)
+  final String label;
+
+  @HiveField(4)
+  final String alarmType;
+
+  @HiveField(5)
+  final String sound;
+
+  AlarmModel({
+    required this.hour,
+    required this.minute,
+    required this.repeatDays,
+    required this.label,
+    required this.alarmType,
+    required this.sound,
+  });
+
+  @override
+  List<Object?> get props => [
+    hour,
+    minute,
+    repeatDays,
+    label,
+    alarmType,
+    sound,
+  ];
+
+  TimeOfDay get time => TimeOfDay(hour: hour, minute: minute);
+}
+
+
+=== FILE: .\core\models\alarm_model.g.dart ===
+
+// GENERATED CODE - DO NOT MODIFY BY HAND
+
+part of 'alarm_model.dart';
+
+// **************************************************************************
+// TypeAdapterGenerator
+// **************************************************************************
+
+class AlarmModelAdapter extends TypeAdapter<AlarmModel> {
+  @override
+  final int typeId = 0;
+
+  @override
+  AlarmModel read(BinaryReader reader) {
+    final numOfFields = reader.readByte();
+    final fields = <int, dynamic>{
+      for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
+    };
+    return AlarmModel(
+      hour: fields[0] as int,
+      minute: fields[1] as int,
+      repeatDays: (fields[2] as List).cast<String>(),
+      label: fields[3] as String,
+      alarmType: fields[4] as String,
+      sound: fields[5] as String,
+    );
+  }
+
+  @override
+  void write(BinaryWriter writer, AlarmModel obj) {
+    writer
+      ..writeByte(6)
+      ..writeByte(0)
+      ..write(obj.hour)
+      ..writeByte(1)
+      ..write(obj.minute)
+      ..writeByte(2)
+      ..write(obj.repeatDays)
+      ..writeByte(3)
+      ..write(obj.label)
+      ..writeByte(4)
+      ..write(obj.alarmType)
+      ..writeByte(5)
+      ..write(obj.sound);
+  }
+
+  @override
+  int get hashCode => typeId.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is AlarmModelAdapter &&
+          runtimeType == other.runtimeType &&
+          typeId == other.typeId;
+}
+
+
+=== FILE: .\features\alarm\ui\add_alarm_screen.dart ===
+
+import 'package:flutter/material.dart';
+import '../../../core/models/alarm_model.dart';
+
+class AddAlarmScreen extends StatefulWidget {
+  const AddAlarmScreen({super.key});
+
+  @override
+  State<AddAlarmScreen> createState() => _AddAlarmScreenState();
+}
+
+class _AddAlarmScreenState extends State<AddAlarmScreen> {
+  TimeOfDay selectedTime = TimeOfDay.now();
+  String label = "Alarm";
+  String alarmType = "Default";
+  String sound = "Default";
+  List<String> selectedDays = [];
+
+  final List<String> days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+  Future<void> _pickTime() async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: selectedTime,
+    );
+    if (picked != null) {
+      setState(() {
+        selectedTime = picked;
+      });
+    }
+  }
+
+  Future<void> _editLabel() async {
+    final controller = TextEditingController(text: label);
+    final result = await showDialog<String>(
+      context: context,
+      builder:
+          (_) => AlertDialog(
+            title: const Text('Alarm Label'),
+            content: TextField(
+              controller: controller,
+              autofocus: true,
+              decoration: const InputDecoration(hintText: 'Enter label'),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, controller.text.trim()),
+                child: const Text('Save'),
+              ),
+            ],
+          ),
+    );
+    if (result != null && result.isNotEmpty) {
+      setState(() {
+        label = result;
+      });
+    }
+  }
+
+  Future<void> _selectAlarmType() async {
+    final types = ['Default', 'Math', 'Voice', 'Photo'];
+    final result = await showModalBottomSheet<String>(
+      context: context,
+      builder:
+          (_) => ListView(
+            shrinkWrap: true,
+            children:
+                types
+                    .map(
+                      (type) => ListTile(
+                        title: Text(type),
+                        onTap: () => Navigator.pop(context, type),
+                      ),
+                    )
+                    .toList(),
+          ),
+    );
+    if (result != null) {
+      setState(() => alarmType = result);
+    }
+  }
+
+  Future<void> _selectSound() async {
+    final sounds = ['Default', 'Morning Breeze', 'Radar', 'Loud Siren'];
+    final result = await showModalBottomSheet<String>(
+      context: context,
+      builder:
+          (_) => ListView(
+            shrinkWrap: true,
+            children:
+                sounds
+                    .map(
+                      (s) => ListTile(
+                        title: Text(s),
+                        onTap: () => Navigator.pop(context, s),
+                      ),
+                    )
+                    .toList(),
+          ),
+    );
+    if (result != null) {
+      setState(() => sound = result);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final timeFormatted =
+        "${selectedTime.hourOfPeriod.toString().padLeft(2, '0')}:${selectedTime.minute.toString().padLeft(2, '0')} ${selectedTime.period == DayPeriod.am ? 'AM' : 'PM'}";
+
+    return Scaffold(
+      appBar: AppBar(title: const Text("Add Alarm")),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              GestureDetector(
+                onTap: _pickTime,
+                child: Center(
+                  child: Text(
+                    timeFormatted,
+                    style: const TextStyle(
+                      fontSize: 52,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 30),
+              const Text(
+                "Repeat Days",
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              Wrap(
+                spacing: 8,
+                children:
+                    days.map((day) {
+                      final isSelected = selectedDays.contains(day);
+                      return ChoiceChip(
+                        label: Text(day),
+                        selected: isSelected,
+                        onSelected: (selected) {
+                          setState(() {
+                            isSelected
+                                ? selectedDays.remove(day)
+                                : selectedDays.add(day);
+                          });
+                        },
+                      );
+                    }).toList(),
+              ),
+              const SizedBox(height: 24),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text("Label"),
+                subtitle: Text(label),
+                trailing: const Icon(Icons.edit),
+                onTap: _editLabel,
+              ),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text("Alarm Type"),
+                subtitle: Text(alarmType),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: _selectAlarmType,
+              ),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text("Sound"),
+                subtitle: Text(sound),
+                trailing: const Icon(Icons.music_note),
+                onTap: _selectSound,
+              ),
+              const SizedBox(height: 30),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    final alarm = AlarmModel(
+                      hour: selectedTime.hour,
+                      minute: selectedTime.minute,
+                      repeatDays: selectedDays,
+                      label: label,
+                      alarmType: alarmType,
+                      sound: sound,
+                    );
+                    Navigator.pop(context, alarm);
+                  },
+                  icon: const Icon(Icons.save),
+                  label: const Text("Save Alarm"),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+
+=== FILE: .\features\alarm\ui\alarm_list_screen.dart ===
+
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_slidable/flutter_slidable.dart';
+import '../../../blocs/alarm_bloc/alarm_bloc.dart';
+import '../../../blocs/alarm_bloc/alarm_state.dart';
+import '../../../core/models/alarm_model.dart';
+import 'add_alarm_screen.dart';
+import '../../../blocs/alarm_bloc/alarm_event.dart';
+
+class AlarmListScreen extends StatelessWidget {
+  const AlarmListScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text(
+          'Doom Alarm',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24),
+        ),
+        centerTitle: true,
+      ),
+      body: BlocBuilder<AlarmBloc, AlarmState>(
+        builder: (context, state) {
+          if (state.alarms.isEmpty) {
+            return const Center(
+              child: Text(
+                'No alarms set yet.',
+                style: TextStyle(fontSize: 18, color: Colors.grey),
+              ),
+            );
+          }
+
+          return ListView.builder(
+            padding: const EdgeInsets.all(12),
+            itemCount: state.alarms.length,
+            itemBuilder: (context, index) {
+              final alarm = state.alarms[index];
+              final timeText =
+                  '${alarm.hour.toString().padLeft(2, '0')}:${alarm.minute.toString().padLeft(2, '0')}';
+
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8.0),
+                child: Slidable(
+                  key: ValueKey(alarm),
+                  endActionPane: ActionPane(
+                    motion: const DrawerMotion(),
+                    extentRatio: 0.25,
+                    children: [
+                      SlidableAction(
+                        onPressed: (_) {
+                          _confirmDelete(context, alarm, index);
+                        },
+                        icon: Icons.delete,
+                        backgroundColor: Colors.redAccent,
+                        foregroundColor: Colors.white,
+                        label: 'Delete',
+                      ),
+                    ],
+                  ),
+                  child: Card(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    elevation: 4,
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.alarm,
+                                size: 28,
+                                color: Colors.deepPurple,
+                              ),
+                              const SizedBox(width: 10),
+                              Text(
+                                timeText,
+                                style: const TextStyle(
+                                  fontSize: 32,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            alarm.label,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              color: Colors.grey,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          Wrap(
+                            spacing: 8,
+                            children: [
+                              ...alarm.repeatDays.map(
+                                (day) => Chip(
+                                  label: Text(day),
+                                  backgroundColor: Colors.deepPurple.shade50,
+                                ),
+                              ),
+                              Chip(
+                                label: Text(alarm.alarmType),
+                                backgroundColor: Colors.orange.shade100,
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+          );
+        },
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () async {
+          final alarm = await Navigator.push<AlarmModel>(
+            context,
+            MaterialPageRoute(builder: (_) => const AddAlarmScreen()),
+          );
+
+          if (alarm != null) {
+            context.read<AlarmBloc>().add(AddAlarm(alarm));
+          }
+        },
+        icon: const Icon(Icons.add),
+        label: const Text("Add Alarm"),
+      ),
+    );
+  }
+
+  void _confirmDelete(BuildContext context, AlarmModel alarm, int index) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder:
+          (_) => AlertDialog(
+            title: const Text("Delete Alarm"),
+            content: const Text("Are you sure you want to delete this alarm?"),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text("Cancel"),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text("Delete"),
+              ),
+            ],
+          ),
+    );
+
+    if (confirm == true) {
+      context.read<AlarmBloc>().add(DeleteAlarm(index));
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Alarm deleted'),
+          action: SnackBarAction(
+            label: 'Undo',
+            onPressed: () {
+              context.read<AlarmBloc>().add(AddAlarm(alarm));
+            },
+          ),
+        ),
+      );
+    }
+  }
+}
+
+
