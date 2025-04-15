@@ -4,7 +4,7 @@ import '../../core/models/alarm_model.dart';
 import 'alarm_event.dart';
 import 'alarm_state.dart';
 import 'package:android_alarm_manager_plus/android_alarm_manager_plus.dart';
-import '../../core/utils/alarm_callback.dart'; 
+import '../../core/utils/alarm_callback.dart';
 
 class AlarmBloc extends Bloc<AlarmEvent, AlarmState> {
   AlarmBloc() : super(const AlarmState(alarms: [])) {
@@ -32,7 +32,7 @@ class AlarmBloc extends Bloc<AlarmEvent, AlarmState> {
     emit(state.copyWith(alarms: alarms));
   }
 
- Future<void> _onAddAlarm(AddAlarm event, Emitter<AlarmState> emit) async {
+  Future<void> _onAddAlarm(AddAlarm event, Emitter<AlarmState> emit) async {
     final box = Hive.box<AlarmModel>('alarms');
     await box.add(event.alarm);
 
@@ -60,6 +60,7 @@ class AlarmBloc extends Bloc<AlarmEvent, AlarmState> {
       alarmCallback,
       exact: true,
       wakeup: true,
+      rescheduleOnReboot: true,
     );
   }
 }

@@ -1,11 +1,26 @@
 import 'package:permission_handler/permission_handler.dart';
 
 class PermissionsHelper {
+  /// Checks whether **all required permissions** are granted.
   static Future<bool> hasAllPermissions() async {
-    final notif = await Permission.notification.isGranted;
+    final notification = await Permission.notification.isGranted;
     final exactAlarm = await Permission.scheduleExactAlarm.isGranted;
+    final batteryOptimizationStatus =
+        await Permission.ignoreBatteryOptimizations.status;
+    final batteryOptimization = batteryOptimizationStatus.isGranted;
 
-    // You can add battery optimization checks here too if needed
-    return notif && exactAlarm;
+    return notification && exactAlarm && batteryOptimization;
+  }
+
+  /// Optionally, separate checks for each permission
+  static Future<bool> hasNotificationPermission() =>
+      Permission.notification.isGranted;
+
+  static Future<bool> hasExactAlarmPermission() =>
+      Permission.scheduleExactAlarm.isGranted;
+
+  static Future<bool> hasBatteryOptimizationPermission() async {
+    final status = await Permission.ignoreBatteryOptimizations.status;
+    return status.isGranted;
   }
 }
